@@ -9,142 +9,88 @@
         <script src="libs/ammo.js" type="text/javascript">
                 
         </script>
-        <script src="libs/CubicVR.js" type="text/javascript">
-                
+        <script src="../gitCubicVR/CubicVR.js" type="text/javascript">
+             
+        </script>
+        <script src="game/SceneLoader.js" type="text/javascript">
+             
         </script>
         <script type='text/javascript'>
- 			function SceneLoader(sceneFile) {
-                this.shape = null;
-                this.body = null;
-                this.scene = CubicVR.loadCollada(sceneFile,"./images/");
-				this.pinShape = null;
-            }
+            function BowlingGame(canvas) {
+                
+                this.canvas = canvas;
+                this.loader = null;
+                this.scene = null;
+                this.physics = null;
+                this.layout = null;
+                this.mainloop = null;
+                
+                this.levelModel = "models/bowling.dae";
+                
+                this.camStartPos = null;
+                
+                this.init();
+                this.run();
+            } 
             
-            SceneLoader.prototype = {
-                setupRigidBody: function(physics) {
-                   	var i;
-                    var sceneObjs = this.scene.sceneObjects;
+            BowlingGame.prototype = {
+                
+              init: function() {                
+                    this.initializeScene();
+              }, 
+              
+              initializeScene: function() {
 
-                    this.shape = new CubicVR.CollisionMap();
-                    this.pinShape = new CubicVR.CollisionMap();
+                var canvas = this.canvas;
 
-                    for (i = 0; i < sceneObjs.length; i++) {
-                        var sceneObj = sceneObjs[i];
-                        var objMesh = sceneObj.getMesh();
+                var loader = new SceneLoader(this.levelModel);
+                scene = loader.getScene();
+                scene.lights = [];
 
-                        if (objMesh) {
-                            if (objMesh.name === "CollisionCube-mesh") {
-								if (sceneObj.name.substr(0,7) === "pinBody") {
-									this.pinShape.addShape({
-									    type: "cylinder",
-									    size: sceneObj.scale,
-									    position: CubicVR.vec3.subtract(sceneObj.position,[0,0.580,0])
-									});
-
-									this.scene.removeSceneObject(sceneObj);
-		                            i--;
-								} else {			
-		                            var body = new CubicVR.RigidBody(sceneObj,{
-		                                type: "static",
-		                                mass: 0,
-		                                margin: 0,
-		                                collision: {
-		                                    type: "box",
-		                                    size: sceneObj.scale
-		                                }
-		                            });
-
-		                            physics.bind(body);
-		                            this.scene.removeSceneObject(sceneObj);
-		                            i--;
-								}
-                            }
-                        }
-                        if (objMesh.name === "BowlingBall-mesh") {
-							var body = new CubicVR.RigidBody(sceneObj,{
-		                                type: "dynamic",
-		                                mass: 6.5,
-		                                margin: 0,
-		                                collision: {
-		                                    type: "sphere",
-		                                    radius: sceneObj.scale[0]/2
-		                                }
-		                            });
-
-		                            physics.bind(body);
-						}
-                        if (sceneObj.name === "LaneModel") {
-							sceneObj.shadowCast = false;
-						}
-                   }
-
-					
-					for (i = 1; i <= 10; i++) {
-						var pin = new CubicVR.RigidBody(this.scene.getSceneObject("Pin_"+i),{
-				                        type: "dynamic",
-				                        mass: 1.5310,
-				                        margin: 0,
-				                        collision: this.pinShape
-				                    });
-
-				        physics.bind(pin);
-	   				}
-                },              
-                getScene: function() {
-                  return this.scene;
-                }
-            }
-
-          
-            function webGLStart() {
-                // by default generate a full screen canvas with automatic resize
-                var gl = CubicVR.init();
-                var canvas = CubicVR.getCanvas();
-
-                if (!gl) {
-                    alert("Sorry, no WebGL support.");
-                    return;
-                };
-
-                // New scene with our canvas dimensions and default camera with FOV 80
-                //var scene = new CubicVR.Scene(canvas.width, canvas.height, 80);
-				var loader = new SceneLoader("models/bowling.dae");
-				scene = loader.getScene();
-				scene.lights = [];
-
-				var camStartPos = scene.camera.position.slice(0);
-				scene.camera.resize(canvas.width,canvas.height);
-				scene.camera.setTargeted(true);
+                this.camStartPos = scene.camera.position.slice(0);
+                scene.camera.resize(canvas.width,canvas.height);
+                scene.camera.setTargeted(true);
 
                  // Create a shadowed area light, map resolution 2048
                 scene.bindLight(new CubicVR.Light({
-                  type:CubicVR.enums.light.type.AREA,
-                  intensity:1.1,
-				  specular:[1,1,1],
-                  mapRes:2048,  // 4096 ? 8192 ? ;)
-                  areaCeiling:10,
-                  areaFloor:-10,
-                  areaAxis: [15,-4], // specified in degrees east/west north/south
-                  distance: 30
+                    type:"area",
+                    intensity:1.1,
+                    specular:[1,1,1],
+                    mapRes:2048,  // 4096 ? 8192 ? ;)
+                    areaCeiling:10,
+                    areaFloor:-10,
+                    areaAxis: [15,-4], // specified in degrees east/west north/south
+                    distance: 30
                 }));
-                
-                CubicVR.setSoftShadows(true);
-                
-                   // init physics manager
+
+                // init physics manager
                 var physics = new CubicVR.ScenePhysics();
 
-				loader.setupRigidBody(physics);				
-
-                // initialize a mouse view controller
-                mvc = new CubicVR.MouseViewController(canvas, scene.camera);
+                loader.setupRigidBody(physics);                
 
                 // Add our scene to the window resize list
                 CubicVR.addResizeable(scene);
+                
+                this.scene = scene;
+                this.physics = physics;
+                this.loader = loader;
+              },
+              
+              run: function() {
+                var scene = this.scene;
+                var physics = this.physics;
+                var canvas = this.canvas;
+                var camStartPos = this.camStartPos;
+                
+                // initialize a mouse view controller
+                var mvc = new CubicVR.MouseViewController(canvas, scene.camera);
 
-	
                 var pickConstraint = null;
+                var ballConstraint = null;
                 var pickDist = 0;
-				var rigidBall = null;             
+                var rigidBall = this.loader.getRigidBall();
+                var throwVec = [0,0,0];
+                var spinVal = 0;
 
                  mvc.setEvents({
                     mouseMove: function (ctx, mpos, mdelta, keyState) {
@@ -153,6 +99,37 @@
 
                         if (pickConstraint) {
                             pickConstraint.setPosition(scene.camera.unProject(mpos[0],mpos[1],pickDist));
+                        } else if (ballConstraint) {
+
+                            var pos = ballConstraint.getPosition();
+
+                            var mvx = mdelta[0]/100.0;
+                            if (mvx>1) mvx = 1;
+                            if (mvx<-1) mvx = -1;
+
+                            var mvy = mdelta[1]/100.0;
+                            if (mvy>1) mvy = 1;
+                            if (mvy<-1) mvy = -1;
+
+                            pos = CubicVR.vec3.add(pos,CubicVR.vec3.multiply(CubicVR.vec3.normalize([-throwVec[0],0,-throwVec[2]]),mvy));
+
+                            //pos[2] += mvy;
+                            if (pos[2] > 12) {
+                                pos[0] += mvx;
+                            } else {
+                                rigidBall.applyImpulse([mvx*15,0,0], [0,rigidBall.sceneObject.scale[0]/2.0,0]);
+                            }
+
+                        
+                            var raise = (pos[2]>11)?((pos[2]-11)/2.0):0;
+                            raise = (raise*raise)/2.0;
+                            pos[1] = raise+rigidBall.sceneObject.scale[0]/2+0.2;
+
+
+                            if (pos[2]<10 || pos[2]>14 || pos[0] < -3 || pos[0] > 3) {
+                            } else {
+                                ballConstraint.setPosition(pos);
+                            }
                         } else {                   
                             ctx.orbitView(mdelta);
                         }
@@ -165,28 +142,44 @@
                       var rayTo = scene.camera.unProject(mpos[0],mpos[1]);
                       var result = physics.getRayHit(scene.camera.position,rayTo);
 
-                      if (result && !pickConstraint) {
-						var resultName = result.rigidBody.getSceneObject().name;
+                      if (result && !pickConstraint && !ballConstraint) {
+                        var resultName = result.rigidBody.getSceneObject().name;
 
-						if (resultName == "BowlingBall") {
-							result.rigidBody.activate();
-							var camVec = CubicVR.vec3.subtract(result.rigidBody.getSceneObject().position,scene.camera.position);
-							camVec = CubicVR.vec3.multiply(CubicVR.vec3.normalize(camVec),50);
-							
-							result.rigidBody.applyImpulse(camVec,result.localPosition);
+                        if (resultName == "BowlingBall") {
+/*                            result.rigidBody.activate();
+                            var camVec = CubicVR.vec3.subtract(result.rigidBody.getSceneObject().position,scene.camera.position);
+                            camVec = CubicVR.vec3.multiply(CubicVR.vec3.normalize(camVec),50);
+                            
+                            result.rigidBody.applyImpulse(camVec,result.localPosition);*/
 
-							rigidBall = result.rigidBody;
-						} else {			
-		                    pickConstraint = new CubicVR.Constraint({
-		                        type: CubicVR.enums.physics.constraint.P2P,
-		                        rigidBody: result.rigidBody,
-		                        positionA: result.localPosition
-		                    });                        
-		                    
-		                    physics.addConstraint(pickConstraint);                       
-		                    pickDist = CubicVR.vec3.length(CubicVR.vec3.subtract(scene.camera.position,result.position));                        
-		                    pickConstraint.setPosition(scene.camera.unProject(mpos[0],mpos[1],pickDist));
-						}
+                            var ballPos = rigidBall.getSceneObject().position;
+
+                            if (ballPos[2]<10) {
+                                return false;
+                            }
+
+                            ballConstraint = new CubicVR.Constraint({
+                                type: CubicVR.enums.physics.constraint.P2P,
+                                rigidBody: result.rigidBody,
+                                positionA: [0,0,0]
+                            });                        
+                            
+
+                            physics.addConstraint(ballConstraint);
+                            ballConstraint.setPosition([0,rigidBall.sceneObject.scale[0]/2+0.2,12]);
+                            document.body.style.cursor='move';
+                            throwVec = CubicVR.vec3.subtract(result.rigidBody.getSceneObject().position,scene.camera.position);
+                        } else {            
+                            pickConstraint = new CubicVR.Constraint({
+                                type: CubicVR.enums.physics.constraint.P2P,
+                                rigidBody: result.rigidBody,
+                                positionA: result.localPosition
+                            });                        
+                            
+                            physics.addConstraint(pickConstraint);                       
+                            pickDist = CubicVR.vec3.length(CubicVR.vec3.subtract(scene.camera.position,result.position));                        
+                            pickConstraint.setPosition(scene.camera.unProject(mpos[0],mpos[1],pickDist));
+                        }
                       }
                       
                     },
@@ -195,51 +188,96 @@
                             physics.removeConstraint(pickConstraint);
                             pickConstraint = null;
                         }                        
+                        if (ballConstraint) {
+                            physics.removeConstraint(ballConstraint);
+                            ballConstraint = null;
+                        }
+                        document.body.style.cursor='auto';
                     },
                     keyDown: function(ctx, mpos, key, keyState) {
-						if (key == CubicVR.keyboard.SPACE && rigidBall) {
-							scene.camera.position = camStartPos.slice(0);
-							rigidBall.reset();
-						} else if (key == CubicVR.keyboard.KEY_R && rigidBall) {
-							doReset = true;
-						}
-					},
+                        if (key == CubicVR.keyboard.SPACE && rigidBall) {
+                            scene.camera.position = camStartPos.slice(0);
+                            rigidBall.reset();
+                        } else if (key == CubicVR.keyboard.KEY_R && rigidBall) {
+                            doReset = true;
+                        }
+                    },
                     keyUp: null
                 });
                 
                 
-				var doReset = false;
+                var doReset = false;
 
-				var bowlingBall = this.scene.getSceneObject("BowlingBall");
-             
+                var bowlingBall = this.loader.getBall();
+                
+                var ballMats = bowlingBall.getMesh().materials;
+//                ballMats[0].setTexture(new CubicVR.Texture("images/bowlingball-spec.jpg"),"specular");
+                ballMats[0].specular = [0.5,0.5,1];
+                ballMats[0].shininess = 0.4;
+
                 // Start our main drawing loop, it provides a timer and the gl context as parameters
-                CubicVR.MainLoop(function(timer, gl) {
+                this.mainloop = new CubicVR.MainLoop(function(timer, gl) {
                     var seconds = timer.getSeconds();
-					var lus = timer.getLastUpdateSeconds();
+                    var lus = timer.getLastUpdateSeconds();
 
-					if (doReset) {
-						physics.reset(); 
-						scene.camera.position = camStartPos.slice(0);
-						doReset = false;
-					}
+                    if (lus > 0.5) {
+                        return;
+                    }
+
+                    if (doReset) {
+                        physics.reset(); 
+                        scene.camera.position = camStartPos.slice(0);
+                        doReset = false;
+                    }
 
                     physics.stepSimulation(lus);
 
-                    scene.render();
-					if (bowlingBall.position[2] > -12) {
-						scene.camera.trackTarget(bowlingBall.position,lus*3.0,3.5);
-						scene.camera.target = bowlingBall.position.slice(0);
-					}
+                    if (bowlingBall.position[2] > -12) {
+                        scene.camera.trackTarget(bowlingBall.position,lus*3.0,3.5);
+                        scene.camera.target = bowlingBall.position.slice(0);
+                    }
 
-					if (scene.camera.position[1] < 0.5) {
-						scene.camera.position[1] = 0.5;
-					}
+                    if (scene.camera.position[1] < 0.5) {
+                        scene.camera.position[1] = 0.5;
+                    }
+                    if (scene.camera.position[1] < bowlingBall.position[1]+0.4) {
+                        scene.camera.position[1] = bowlingBall.position[1]+0.4;
+                    }
+                    if (ballConstraint)    {
+                        scene.camera.position[0] = bowlingBall.position[0]-throwVec[0];
+                    }
+
+                    if (rigidBall && rigidBall.sceneObject.position[2]>18) {
+                        scene.camera.position = camStartPos.slice(0);
+                        rigidBall.reset();
+                    }
+
+                   scene.render();
                 });
+              }
+              
+              
+              
+            }
+
+            function gameStart() {
+                // by default generate a full screen canvas with automatic resize
+                var gl = CubicVR.init();
+                var canvas = CubicVR.getCanvas();
+
+                if (!gl) {
+                    alert("Sorry, no WebGL support.");
+                    return;
+                };
+                
+                CubicVR.setSoftShadows(true);
+
+                var game = new BowlingGame(canvas);
             }
         </script>
     </head>
     
-    <body onLoad="webGLStart();">
+    <body onLoad="gameStart();">
     </body>
 
 </html>                 
